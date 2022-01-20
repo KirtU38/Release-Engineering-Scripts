@@ -27,6 +27,31 @@ def run_in_terminal(command):
     return subprocess.run(command, shell=True, capture_output=True, encoding='utf-8')
 
 
+def get_asana_token(env_var_name):
+    try:
+        return os.environ[env_var_name]
+    except:
+        print(f"Couldn't find Environment variable {env_var_name}");
+        sys.exit()
+
+
+def get_section_id(project_id, token, project_url) -> str:
+    sections = run_in_terminal(f"""curl -X GET https://app.asana.com/api/1.0/projects/{project_id}/sections -H 'Accept: application/json' -H 'Authorization: Bearer {token}'""")
+    json_sections = json.loads(sections.stdout)
+
+    for section in json_sections['data']:
+        if section['name'] == 'ClickDeploy' or section['name'] == 'Stories to Deploy':
+            return section['gid']
+
+    print(f'No section "ClickDeploy" or "Stories to Deploy" in Project {project_url}');
+    sys.exit()
+
+
+def get_tasks_in_json(section_id, token):
+    tasks_raw = run_in_terminal(f"""curl -X GET https://app.asana.com/api/1.0/tasks\?section\={section_id} -H 'Accept: application/json' -H 'Authorization: Bearer {token}'""")
+    return json.loads(tasks_raw.stdout)['data']
+
+
 def get_tasks_list(tasks_json, base_url) -> List[AsanaTask]:
     tasks: List[AsanaTask] = []
     for task in tasks_json:
@@ -38,38 +63,6 @@ def get_tasks_list(tasks_json, base_url) -> List[AsanaTask]:
         tasks.append(task_object)
 
     return tasks
-
-
-def print_task(task: AsanaTask):
-    if len(task.branches) == 1 and task.is_merged == True and not task.has_reverts:
-        ok_print = "OK "
-    elif len(task.branches) > 1 or task.has_reverts or (len(task.branches) == 1 and not task.is_merged):
-        ok_print = "!! "
-    else:
-        ok_print = "   "
-
-    if len(task.branches) > 1:
-        branch_print = f"Has {len(task.branches)} Branches"
-    elif len(task.branches) == 0:
-        branch_print = f"No Branch"
-    else:
-        branch_print = task.branches[0]
-
-    if task.is_merged:
-        is_merged_print = " -> Fully merged"
-    elif len(task.branches) == 1 and task.is_merged == False:
-        is_merged_print = " -> NOT Fully merged"
-    else:
-        is_merged_print = ""
-
-    has_reverts_print = ""
-    if task.has_reverts:
-        has_reverts_print = " -> HAS REVERTS"
-    else:
-        has_reverts_print = ""
-
-    print(f"   {task.name} -> {task.url}")
-    print(f'{ok_print}{task.id} -> {branch_print}{is_merged_print}{has_reverts_print}\n')
 
 
 def handle_tasks(tasks: List[AsanaTask]):
@@ -103,29 +96,36 @@ def handle_tasks(tasks: List[AsanaTask]):
         print_task(task)
 
 
-def get_section_id(project_id, token, project_url) -> str:
-    sections = run_in_terminal(f"""curl -X GET https://app.asana.com/api/1.0/projects/{project_id}/sections -H 'Accept: application/json' -H 'Authorization: Bearer {token}'""")
-    json_sections = json.loads(sections.stdout)
+def print_task(task: AsanaTask):
+    if len(task.branches) == 1 and task.is_merged == True and not task.has_reverts:
+        ok_print = "OK "
+    elif len(task.branches) > 1 or task.has_reverts or (len(task.branches) == 1 and not task.is_merged):
+        ok_print = "!! "
+    else:
+        ok_print = "   "
 
-    for section in json_sections['data']:
-        if section['name'] == 'ClickDeploy' or section['name'] == 'Stories to Deploy':
-            return section['gid']
+    if len(task.branches) > 1:
+        branch_print = f"Has {len(task.branches)} Branches"
+    elif len(task.branches) == 0:
+        branch_print = f"No Branch"
+    else:
+        branch_print = task.branches[0]
 
-    print(f'No section "ClickDeploy" or "Stories to Deploy" in Project {project_url}');
-    sys.exit()
+    if task.is_merged:
+        is_merged_print = " -> Fully merged"
+    elif len(task.branches) == 1 and task.is_merged == False:
+        is_merged_print = " -> NOT Fully merged"
+    else:
+        is_merged_print = ""
 
+    has_reverts_print = ""
+    if task.has_reverts:
+        has_reverts_print = " -> HAS REVERTS"
+    else:
+        has_reverts_print = ""
 
-def get_tasks_in_json(section_id, token):
-    tasks_raw = run_in_terminal(f"""curl -X GET https://app.asana.com/api/1.0/tasks\?section\={section_id} -H 'Accept: application/json' -H 'Authorization: Bearer {token}'""")
-    return json.loads(tasks_raw.stdout)['data']
-
-
-def get_asana_token(env_var_name):
-    try:
-        return os.environ[env_var_name]
-    except:
-        print(f"Couldn't find Environment variable {env_var_name}");
-        sys.exit()
+    print(f"   {task.name} -> {task.url}")
+    print(f'{ok_print}{task.id} -> {branch_print}{is_merged_print}{has_reverts_print}\n')
 
 
 # Program start
