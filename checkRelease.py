@@ -6,11 +6,19 @@ import os
 import asana
 
 
+class Branch:
+    name: str
+    is_merged: bool
+
+    def __init__(self, name) -> None:
+        self.name = name
+        self.is_merged = False
+
+
 class AsanaTask:
     name: str
     id: int
-    branches: List[str]
-    is_merged: bool
+    branches: List[Branch]
     has_reverts: bool
     url: str
 
@@ -19,7 +27,6 @@ class AsanaTask:
         self.id = id
         self.url = url
         self.branches = []
-        self.is_merged = False
         self.has_reverts = False
 
 
@@ -28,10 +35,11 @@ def run_in_terminal(command):
 
 
 def get_asana_token(env_var_name):
+    asd = run_in_terminal("source ~/.bash_profile")
     try:
         return os.environ[env_var_name]
     except:
-        print(f"Couldn't find Environment variable {env_var_name}");
+        print(f"Couldn't find Environment variable {env_var_name}")
         sys.exit()
 
 
@@ -43,7 +51,7 @@ def get_section_id(project_id, token, project_url) -> str:
         if section['name'] == 'ClickDeploy' or section['name'] == 'Stories to Deploy':
             return section['gid']
 
-    print(f'No section "ClickDeploy" or "Stories to Deploy" in Project {project_url}');
+    print(f'No section "ClickDeploy" or "Stories to Deploy" in Project {project_url}')
     sys.exit()
 
 
@@ -70,7 +78,7 @@ def handle_tasks(tasks: List[AsanaTask]):
 
     for task in tasks:
         # Find remote Branches
-        task_branches = run_in_terminal(f'git branch --remotes | grep {task.id}')
+        task_branches = run_in_terminal(f"git branch --remotes | grep {task.id} | tr '\n' ' '")
         if not task_branches.stdout:
             print_task(task)
             continue
@@ -78,7 +86,7 @@ def handle_tasks(tasks: List[AsanaTask]):
         # Add Branches to object
         task_branches_split = task_branches.stdout.strip().split("  ")
         for branch in task_branches_split:
-            task.branches.append(branch)
+            task.branches.append(Branch(branch.strip()))
 
         # Check for reverts
         revert_commits = run_in_terminal(f'git log --oneline | grep {task.id} | grep -i revert')
@@ -86,46 +94,44 @@ def handle_tasks(tasks: List[AsanaTask]):
             task.has_reverts = True
 
         # Check if fully merged
-        if (len(task.branches) == 1):
-            last_commit = run_in_terminal(f"git log {task.branches[0]} -1 --oneline | awk '{{print $1}}'")
-            is_merged = run_in_terminal(f"git log --oneline | grep {last_commit.stdout}")
+        if (len(task.branches) > 0):
+            for branch in task.branches:
+                last_commit = run_in_terminal(f"git log {branch.name} -1 --oneline | awk '{{print $1}}'")
+                is_merged = run_in_terminal(f"git log --oneline | grep {last_commit.stdout}")
 
-            if is_merged.stdout != "":
-                task.is_merged = True
+                if is_merged.stdout != "":
+                    branch.is_merged = True
 
         print_task(task)
 
 
 def print_task(task: AsanaTask):
-    if len(task.branches) == 1 and task.is_merged == True and not task.has_reverts:
-        ok_print = "OK "
-    elif len(task.branches) > 1 or task.has_reverts or (len(task.branches) == 1 and not task.is_merged):
-        ok_print = "!! "
-    else:
-        ok_print = "   "
 
-    if len(task.branches) > 1:
-        branch_print = f"Has {len(task.branches)} Branches"
-    elif len(task.branches) == 0:
-        branch_print = f"No Branch"
-    else:
-        branch_print = task.branches[0]
-
-    if task.is_merged:
-        is_merged_print = " -> Fully merged"
-    elif len(task.branches) == 1 and task.is_merged == False:
-        is_merged_print = " -> NOT Fully merged"
-    else:
-        is_merged_print = ""
-
-    has_reverts_print = ""
     if task.has_reverts:
-        has_reverts_print = " -> HAS REVERTS"
-    else:
-        has_reverts_print = ""
-
+        print(f'!! Has Reverts')
+    if len(task.branches) > 1:
+        print(f'!! Found {len(task.branches)} branches')
     print(f"   {task.name} -> {task.url}")
-    print(f'{ok_print}{task.id} -> {branch_print}{is_merged_print}{has_reverts_print}\n')
+
+    if len(task.branches) == 0:
+        branch_print = f"No Branch"
+        print(f'   {task.id} -> {branch_print}\n')
+        return
+    
+    for branch in task.branches:
+        branch_print = branch.name
+
+        if branch.is_merged:
+            ok_print = "OK "
+            is_merged_print = " -> Merged"
+        else:
+            ok_print = "!! "
+            is_merged_print = " -> NOT Merged"
+
+        print(f'{ok_print}{task.id} -> {branch_print}{is_merged_print}')
+    print("\n")
+
+    
 
 
 # Program start
@@ -141,6 +147,6 @@ section_id = get_section_id(project_id, asana_token, project_url)
 
 tasks_json = get_tasks_in_json(section_id, asana_token)
 tasks = get_tasks_list(tasks_json, base_url)
-# tasks.append(AsanaTask('NOT MERGED Task dummy', 1201673300333083, 'TestURL')) 
-# tasks.append(AsanaTask('REVERTED Task dummy', 1201066088006202, 'TestURL'))
+# tasks.append(AsanaTask('NOT MERGED Task dummy', 1201636415789062, 'TestURL')) 
+# tasks.append(AsanaTask('REVERTED Task dummy', 1200783749941177, 'TestURL'))
 handle_tasks(tasks)
