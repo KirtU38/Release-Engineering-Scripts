@@ -59,15 +59,19 @@ def parse_args():
         "--short", action="store_true", help="Show problems only (marked as !!)", default=False)
 
     parser.add_argument(
-        "-a", "--all-sections", action="store_true", help="Check all Sections in a Project", default=False)
+        "-a", "--all-sections", action="store_true", help="Check all Sections in a Project", default=True)
 
     parser.add_argument(
-        "--from", type=str,
+        "--from-project", type=str,
         help="Filter checked tasks by Sprint. Example: --sprint 'Sprint 24'")
 
     parser.add_argument(
-        "--to", type=str,
+        "--to-project", type=str,
         help="Filter checked tasks by Sprint. Example: --sprint 'Sprint 24'")
+
+    parser.add_argument(
+        "--to-section", type=str,
+        help="Sections in the project that need to be checked. Example: --sections 'ClickDeploy, Stories to Deploy'")
 
     return parser.parse_args()
 
@@ -126,7 +130,7 @@ def get_sections(project_id, token, sections_list: List[str], check_all_sections
 
     sections = {}
     for section in json_sections['data']:
-        if section['name'].upper() in sections_list or check_all_sections:
+        if section['name'].upper() in sections_list or check_all_sections and section['name'].upper() != 'DONE':
             sections[section['name'].upper()] = section['gid']
 
     if check_all_sections:
@@ -149,7 +153,6 @@ def get_tasks_from_sections_json(sections: dict, token, filter_by_sprint):
     json_tasks = []
     for section in sections:
         print(section)
-        print(sections[section])
         tasks_for_section = run_in_terminal(f"""curl -X GET https://app.asana.com/api/1.0/sections/{sections[section]}/tasks{params} -H 'Accept: application/json' -H 'Authorization: Bearer {token}'""")
         json_tasks.append(json.loads(tasks_for_section.stdout)['data'])
     return json_tasks
@@ -245,11 +248,6 @@ def print_task(task: AsanaTask):
     print("\n")
 
 
-resp = run_in_terminal("""curl -X POST https://app.asana.com/api/1.0/tasks/1201408910134529/addProject -H 'Content-Type: application/json' -H 'Accept: application/json' -H 'Authorization: Bearer 1/1200261239000160:0c75d3a8302fa6c7e7c6f8866cad3b21' -d '{\"data\": {\"section\":\"1201637502905579\", \"project\":\"1201637445077799\"} }' """)
-print(resp.stdout)
-
-
-sys.exit()
 # Default variables
 hardcoded_asana_token = ''
 default_sections = 'ClickDeploy,Stories to Deploy'
@@ -258,24 +256,44 @@ env_var_name = "ASANA_TOKEN"
 # Argument valiables
 arguments = parse_args()
 
-# Asana client
+# Asana authorization
 asana_token = get_asana_token(hardcoded_asana_token, arguments.token, env_var_name)
 validate_token(asana_token)
 
 # Arguments parsing
 handle_help_arg(arguments)
 sections_list = handle_sections_arg(arguments.sections, default_sections)
-base_url = arguments.url[:41]
-project_id = arguments.url.split("/")[-2]
-validate_project_id(project_id)
+base_url = arguments.from_project[:41]
+from_project_id = arguments.from_project.split("/")[-2]
+to_project_id = arguments.to_project.split("/")[-2]
+validate_project_id(from_project_id)
+
+
+
+
+
+
+
+
 
 # Getting info from Asana API
-sections = get_sections(project_id, asana_token, sections_list, arguments.all_sections)
+sections = get_sections(from_project_id, asana_token, sections_list, arguments.all_sections)
+to_sections = get_sections(to_project_id, asana_token, [arguments.to_section], True)
+to_section_id = to_sections[arguments.to_section.upper()]
 tasks_for_sections_json = get_tasks_from_sections_json(sections, asana_token, arguments.sprint)
 tasks = get_tasks_list(tasks_for_sections_json, base_url, arguments.sprint)
 if not tasks:
     print("No Tasks found")
     sys.exit()
-# tasks.append(AsanaTask('Task dummy', 1201636415789062, 'TestURL')) 
-# tasks.append(AsanaTask('Task dummy 1', 1200783749941177, 'TestURL'))
-handle_tasks(tasks, arguments.short)
+
+
+
+
+
+for task in tasks:
+    print(task.name)
+    resp = run_in_terminal(f"""curl -X POST https://app.asana.com/api/1.0/tasks/{task.id}/addProject -H 'Content-Type: application/json' -H 'Accept: application/json' -H 'Authorization: Bearer 1/1200261239000160:0c75d3a8302fa6c7e7c6f8866cad3b21' -d '{{\"data\": {{\"section\":\"{to_section_id}\", \"project\":\"{to_project_id}\"}} }}' """)
+    print(resp.stdout)
+print("\n\n\n DONE")
+
+# handle_tasks(tasks, arguments.short)
