@@ -136,11 +136,12 @@ def get_tasks_from_sections_json(sections: dict, token, filter_by_sprint):
     if filter_by_sprint:
         params = f"{params},custom_fields"
 
-    print(f"Retrieving tasks from sections {list(sections.keys())}")
+    print(f"Retrieving Tasks from Sections {list(sections.keys())}")
 
     json_tasks = []
     for section in sections:
         print(section)
+        print(sections[section])
         tasks_for_section = run_in_terminal(f"""curl -X GET https://app.asana.com/api/1.0/sections/{sections[section]}/tasks{params} -H 'Accept: application/json' -H 'Authorization: Bearer {token}'""")
         json_tasks.append(json.loads(tasks_for_section.stdout)['data'])
     return json_tasks
