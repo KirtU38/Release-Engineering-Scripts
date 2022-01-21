@@ -54,6 +54,9 @@ def parse_args():
     parser.add_argument(
         "--short", action="store_true", help="Show problems only (marked as !!)", default=False)
 
+    parser.add_argument(
+        "-a", "--all-sections", action="store_true", help="Check all Sections in a Project", default=False)
+
     return parser.parse_args()
 
 
@@ -100,7 +103,7 @@ def validate_project_id(project_id):
         sys.exit()
 
 
-def get_section_ids(project_id, token, arg_sections_arg: List[str]) -> dict:
+def get_section_ids(project_id, token, sections_list: List[str], check_all_sections) -> dict:
     sections = run_in_terminal(f"""curl -X GET https://app.asana.com/api/1.0/projects/{project_id}/sections -H 'Accept: application/json' -H 'Authorization: Bearer {token}'""").stdout
     if "Not a recognized ID" in sections:
         print(f"Project with ID {project_id} doesn't exist")
@@ -109,10 +112,13 @@ def get_section_ids(project_id, token, arg_sections_arg: List[str]) -> dict:
 
     section_ids = {}
     for section in json_sections['data']:
-        if section['name'].upper() in arg_sections_arg:
+        if section['name'].upper() in sections_list or check_all_sections:
             section_ids[section['name'].upper()] = section['gid']
 
-    for section_name in arg_sections_arg:
+    if check_all_sections:
+        return section_ids
+
+    for section_name in sections_list:
         if not section_ids.get(section_name):
             print(f'Section "{section_name}" was not found')
 
@@ -209,26 +215,22 @@ env_var_name = "ASANA_TOKEN"
 
 # Argument valiables
 arguments = parse_args()
-arg_asana_token = arguments.token
-arg_short = arguments.short
-arg_sections = arguments.sections
-arg_project_url = arguments.url
 
 # Asana client
-asana_token = get_asana_token(hardcoded_asana_token, arg_asana_token, env_var_name)
+asana_token = get_asana_token(hardcoded_asana_token, arguments.token, env_var_name)
 validate_token(asana_token)
 
 # Arguments parsing
 handle_help_arg(arguments)
-sections_list = handle_sections_arg(arg_sections, default_sections)
-base_url = arg_project_url[:41]
-project_id = arg_project_url.split("/")[-2]
+sections_list = handle_sections_arg(arguments.sections, default_sections)
+base_url = arguments.url[:41]
+project_id = arguments.url.split("/")[-2]
 validate_project_id(project_id)
 
 # Getting info from Asana API
-section_ids = get_section_ids(project_id, asana_token, sections_list)
+section_ids = get_section_ids(project_id, asana_token, sections_list, arguments.all_sections)
 tasks_json_for_sections = get_tasks_in_json(list(section_ids.values()), asana_token)
 tasks = get_tasks_list(tasks_json_for_sections, base_url)
 # tasks.append(AsanaTask('Task dummy', 1201636415789062, 'TestURL')) 
 # tasks.append(AsanaTask('Task dummy 1', 1200783749941177, 'TestURL'))
-handle_tasks(tasks, arg_short)
+handle_tasks(tasks, arguments.short)
