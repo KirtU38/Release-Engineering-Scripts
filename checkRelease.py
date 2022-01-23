@@ -6,6 +6,12 @@ from typing import List
 import os
 
 
+# Default variables
+hardcoded_asana_token = ''
+default_sections = 'ClickDeploy,Stories to Deploy'
+env_var_name = "ASANA_TOKEN"
+
+
 class Branch:
     name: str
     is_merged: bool
@@ -13,6 +19,15 @@ class Branch:
     def __init__(self, name) -> None:
         self.name = name
         self.is_merged = False
+
+
+class Section:
+    name: str
+    id: str
+
+    def __init__(self, name, id):
+        self.name = name
+        self.id = id
 
 
 class AsanaTask:
@@ -92,15 +107,13 @@ def handle_help_arg(arguments):
         sys.exit()
 
 
-def handle_sections_arg(arg_sections, default_sections):
-    if not arg_sections:
-        arg_sections = default_sections
+def prettify_section_names(sections) -> List[str]:
+    arg_sections_list = sections.upper().split(",")
+    arg_sections_list_prettified = []
+    for section in arg_sections_list:
+        arg_sections_list_prettified.append(section.strip())
 
-    arg_sections_list = arg_sections.upper().split(",")
-    for i, section in enumerate(arg_sections_list):
-        arg_sections_list[i] = section.strip()
-
-    return arg_sections_list
+    return arg_sections_list_prettified
 
 
 def validate_project_id(project_id):
@@ -109,40 +122,47 @@ def validate_project_id(project_id):
         sys.exit()
 
 
-def get_sections(project_id, token, sections_list: List[str], check_all_sections) -> dict:
-    sections_stdout = run_in_terminal(f"""curl -X GET https://app.asana.com/api/1.0/projects/{project_id}/sections -H 'Accept: application/json' -H 'Authorization: Bearer {token}'""").stdout
-    if "Not a recognized ID" in sections_stdout:
+def get_sections(project_id, token, default_sections, arg_sections, check_all_sections) -> List[Section]:
+    sections_list: List[str] = []
+    if not check_all_sections:
+        if arg_sections:
+            sections_list = prettify_section_names(arg_sections)
+        else:
+            sections_list = prettify_section_names(default_sections)
+
+    sections_for_project_stdout = run_in_terminal(f"""curl -X GET https://app.asana.com/api/1.0/projects/{project_id}/sections -H 'Accept: application/json' -H 'Authorization: Bearer {token}'""").stdout
+    if "Not a recognized ID" in sections_for_project_stdout:
         print(f"Project with ID {project_id} doesn't exist")
         sys.exit()
-    json_sections = json.loads(sections_stdout)
+    json_sections = json.loads(sections_for_project_stdout)
 
-    sections = {}
+    sections: List[Section] = []
     for section in json_sections['data']:
-        if section['name'].upper() in sections_list or check_all_sections:
-            sections[section['name'].upper()] = section['gid']
+        if check_all_sections or section['name'].upper() in sections_list:
+            sections.append(Section(section['name'].upper(), section['gid']))
 
     if check_all_sections:
         return sections
 
     for section_name in sections_list:
-        if not sections.get(section_name):
+        for section_object in sections:
+            if section_name == section_object.name:
+                continue
             print(f'Section "{section_name}" was not found')
 
     return sections
 
 
-def get_tasks_from_sections_json(sections: dict, token, filter_by_sprint):
+def get_tasks_from_sections_json(sections: List[Section], token, filter_by_sprint):
     params = "?opt_fields=gid,name"
     if filter_by_sprint:
         params = f"{params},custom_fields"
 
-    print(f"Retrieving Tasks from Sections {list(sections.keys())}")
-
+    print(f"Retrieving Tasks from Sections:")
     json_tasks = []
     for section in sections:
-        print(section)
-        print(sections[section])
-        tasks_for_section = run_in_terminal(f"""curl -X GET https://app.asana.com/api/1.0/sections/{sections[section]}/tasks{params} -H 'Accept: application/json' -H 'Authorization: Bearer {token}'""")
+        print(section.name)
+        tasks_for_section = run_in_terminal(f"""curl -X GET https://app.asana.com/api/1.0/sections/{section.id}/tasks{params} -H 'Accept: application/json' -H 'Authorization: Bearer {token}'""")
         json_tasks.append(json.loads(tasks_for_section.stdout)['data'])
     return json_tasks
 
@@ -173,6 +193,9 @@ def get_tasks_list(tasks_for_sections_json, base_url, sprint) -> List[AsanaTask]
             task_object = AsanaTask(task['name'], task['gid'], task_url)
             tasks.append(task_object)
 
+    if not tasks:
+        print("No Tasks found")
+        sys.exit()
     return tasks
 
 
@@ -237,11 +260,6 @@ def print_task(task: AsanaTask):
     print("\n")
 
 
-# Default variables
-hardcoded_asana_token = ''
-default_sections = 'ClickDeploy,Stories to Deploy'
-env_var_name = "ASANA_TOKEN"
-
 # Argument valiables
 arguments = parse_args()
 
@@ -251,18 +269,15 @@ validate_token(asana_token)
 
 # Arguments parsing
 handle_help_arg(arguments)
-sections_list = handle_sections_arg(arguments.sections, default_sections)
 base_url = arguments.url[:41]
 project_id = arguments.url.split("/")[-2]
 validate_project_id(project_id)
 
 # Getting info from Asana API
-sections = get_sections(project_id, asana_token, sections_list, arguments.all_sections)
+sections: List[Section] = get_sections(project_id, asana_token, default_sections, arguments.sections, arguments.all_sections)
 tasks_for_sections_json = get_tasks_from_sections_json(sections, asana_token, arguments.sprint)
-tasks = get_tasks_list(tasks_for_sections_json, base_url, arguments.sprint)
-if not tasks:
-    print("No Tasks found")
-    sys.exit()
-# tasks.append(AsanaTask('Task dummy', 1201636415789062, 'TestURL')) 
-# tasks.append(AsanaTask('Task dummy 1', 1200783749941177, 'TestURL'))
+tasks: List[AsanaTask] = get_tasks_list(tasks_for_sections_json, base_url, arguments.sprint)
+
+tasks.append(AsanaTask('Task dummy', 1201636415789062, 'TestURL'))
+tasks.append(AsanaTask('Task dummy 1', 1200783749941177, 'TestURL'))
 handle_tasks(tasks, arguments.short)
