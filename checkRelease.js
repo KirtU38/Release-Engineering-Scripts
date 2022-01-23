@@ -1,49 +1,48 @@
 const asana = require('asana');
 const terminal = require('child_process');
-const argParses = require('commander');
+const argParser = require('commander');
 
 //  Default variables
-const default_sections = 'ClickDeploy,Stories to Deploy'
+const defaultSections = 'ClickDeploy,Stories to Deploy'
 const hardcodedAsanaToken = ''
 const envVarName = "ASANA_TOKEN"
 
 class ReleaseValidator {
     arguments;
+    baseURL;
+    projectId;
     asanaClient;
 
     constructor() {
         this.arguments = this.parseArguments();
+        this.baseURL = this.arguments.url.substring(0,41);
+        this.projectId = this.arguments.url.split("/").slice(-2)[0];
+        this.validateProjectId();
+
         const asanaToken = this.getAsanaToken();
         this.validateToken(asanaToken);
         this.asanaClient = asana.Client.create().useAccessToken(asanaToken);
     }
 
     async run() {
-        // Arguments parsing
-        let baseUrl = this.arguments.url.substring(0,41);
-        let projectId = this.arguments.url.split("/").slice(-2)[0];
-        this.validateProjectId(projectId);
-        
-        // Getting info from Asana API
-        let sections = await this.getSections(projectId);
-        let tasksForSectionsJson = await this.getTasksFromSectionsJson(sections);
-        let tasks = this.getTasksObjectsList(tasksForSectionsJson, baseUrl);
-    
+        let sections = await this.getSections();
+        let tasksFromSectionsJson = await this.getTasksFromSectionsJson(sections);
+        let tasks = this.getTaskObjectsList(tasksFromSectionsJson);
         // tasks.push(new AsanaTask('Task dummy', 1201636415789062, 'TestURL')) 
         // tasks.push(new AsanaTask('Task dummy 1', 1200783749941177, 'TestURL'))
-        this.handleTasks(tasks, this.arguments.short);
+        this.handleTasks(tasks);
     }
 
     parseArguments() {
-        argParses
-            .requiredOption('-u, --url <value>', 'output extra debugging')
-            .option('-s, --sections [value]', 'output extra debugging', default_sections)
-            .option('-a, --all-sections', 'output extra debugging', false)
-            .option('-sp, --sprint [value]', 'output extra debugging')
-            .option('-t, --token [value]', 'output extra debugging')
-            .option('--short', 'output extra debugging', false)
+        argParser
+            .requiredOption('-u, --url <value>', 'URL of Asana Project. Example: -u https://app.asana.com/0/1201640226677955/list')
+            .option('-s, --sections [value]', "Sections in the project that need to be checked. Example: --sections 'ClickDeploy, Stories to Deploy'", defaultSections)
+            .option('-a, --all-sections', 'Check all Sections in a Project', false)
+            .option('-sp, --sprint [value]', "Filter checked tasks by Sprint. Example: --sprint 'Sprint 24'")
+            .option('-t, --token [value]', "You can pass Asana Access Token here, if Environment variable doesn't work. Example: --token '1/1200261289008160:0c75d3a830cfa6c7e7c6f8856cad3b21'")
+            .option('--short', 'Show problems only (marked as !!)', false)
     
-        return argParses.parse(process.argv).opts();
+        return argParser.parse(process.argv).opts();
     }
     
     getAsanaToken() {
@@ -71,14 +70,14 @@ class ReleaseValidator {
         console.log(`Authorization: OK`);
     }
     
-    validateProjectId(project_id) {
-        if (project_id.length != 16 || !project_id.match(/^\d+$/)) {
+    validateProjectId() {
+        if (this.projectId.length != 16 || !this.projectId.match(/^\d+$/)) {
             console.log('Project ID is invalid, it must be 16 characters, numbers only');
-            process.exit(1)
+            process.exit(1);
         }
     }
     
-    async getSections(projectId) {
+    async getSections() {
         let chosenSectionsStringList = []
         if (!this.arguments.allSections) {
             if (this.arguments.sections) {
@@ -86,32 +85,32 @@ class ReleaseValidator {
             }
         }
     
-        return await this.asanaClient.sections.getSectionsForProject(projectId, {opt_pretty: true})
+        return await this.asanaClient.sections.getSectionsForProject(this.projectId, {opt_pretty: true})
             .then(
                 (result) => {
-                    let json_sections = result.data
+                    let jsonSections = result.data;
     
-                    let retrievedSectionsObjects = []
-                    for (const section of json_sections) {
+                    let retrievedSectionsObjects = [];
+                    for (const section of jsonSections) {
                         if (this.arguments.allSections || chosenSectionsStringList.includes(section.name.toUpperCase())) {
-                            retrievedSectionsObjects.push(new Section(section.name.toUpperCase(), section.gid))
+                            retrievedSectionsObjects.push(new Section(section.name.toUpperCase(), section.gid));
                         }
                     }
     
                     if (this.arguments.allSections) return retrievedSectionsObjects;
     
                     // Check not found sections
-                    let retrievedSectionsNames = retrievedSectionsObjects.map((s) => s.name)
-                    for (const section_name of chosenSectionsStringList) {
-                        if (!retrievedSectionsNames.includes(section_name)) {
-                            console.log(`Section "${section_name}" was not found`);
+                    let retrievedSectionsNames = retrievedSectionsObjects.map((s) => s.name);
+                    for (const sectionName of chosenSectionsStringList) {
+                        if (!retrievedSectionsNames.includes(sectionName)) {
+                            console.log(`Section "${sectionName}" was not found`);
                         }
                     }
                     return retrievedSectionsObjects;
                 },
                 (error) => {
-                    console.log(`Project with ID ${project_id} doesn't exist`);
-                    process.exit(1)
+                    console.log(`Project with ID ${this.projectId} doesn't exist`);
+                    process.exit(1);
                 }
             );
     }
@@ -123,28 +122,27 @@ class ReleaseValidator {
         }
         
         console.log('Retrieving Tasks from Sections:');
-        let json_tasks = [];
+        let jsonTasks = [];
         for (const section of sections) {
             console.log(section.name);
     
             await this.asanaClient.tasks.getTasksForSection(section.id, {opt_fields: `${params}`, opt_pretty: true})
                 .then(
                     (result) => {
-                        json_tasks.push(result.data);
+                        jsonTasks.push(result.data);
                     },
                     (error) => {
                         console.log(error);
                     }
                 );
         }
-        return json_tasks;
+        return jsonTasks;
     }
     
-    getTasksObjectsList(tasks_for_sections_json, base_url) {
-        let tasks  = []
-        for (const tasks_json of tasks_for_sections_json) {
-            for (const task of tasks_json) {
-    
+    getTaskObjectsList(sectionsWithTasks) {
+        let tasks  = [];
+        for (const tasksForSection of sectionsWithTasks) {
+            for (const task of tasksForSection) {
                 // Filter by sprint if it was chosen
                 if (this.arguments.sprint) {
                     let sprintField = task.custom_fields.find((field) => field.name == 'BT Sprint - FY22');
@@ -155,9 +153,9 @@ class ReleaseValidator {
                     }
                 }
     
-                let task_url = `${base_url}${task.gid}`;
-                let task_object = new AsanaTask(task.name, task.gid, task_url);
-                tasks.push(task_object);
+                let taskURL = `${this.baseURL}${task.gid}`;
+                let taskObject = new AsanaTask(task.name, task.gid, taskURL);
+                tasks.push(taskObject);
             }
         }
     
@@ -168,7 +166,7 @@ class ReleaseValidator {
         return tasks
     }
     
-    handleTasks(tasks, short) {
+    handleTasks(tasks) {
         console.log('\n');
     
         for (const task of tasks) {
@@ -240,7 +238,6 @@ class ReleaseValidator {
         console.log("\n")
     }
 }
-
 
 class Branch {
     name;
