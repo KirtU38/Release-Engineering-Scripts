@@ -49,8 +49,8 @@ class ReleaseValidator {
                 otherCommits.push(commit);
             }
         }
-        console.log('ClickDeploy:');
-        console.log(clickDeployCommits);
+        // console.log('ClickDeploy:');
+        // console.log(clickDeployCommits);
         console.log('Other commits:');
         console.log(otherCommits);
         console.log('Revert Commits:');
@@ -62,14 +62,18 @@ class ReleaseValidator {
             await this.asanaClient.tasks.getTask(storyId, {opt_fields: 'name,custom_fields'})
             .then(
                 (result) => {
+                    let teamField = result.custom_fields.find((field) => field.name == 'Aquiva Team');
                     let sprintFieldOld = result.custom_fields.find((field) => field.name == 'BT Sprint - FY22');
                     let sprintFieldNew = result.custom_fields.find((field) => field.name == 'ET Sprint - FY23');
                     let sprintField = sprintFieldOld ? sprintFieldOld : sprintFieldNew;
                     
                     if (sprintField && sprintField.display_value) {
+                        let teamValueFormatted = teamField.display_value 
+                            ? teamField.display_value + ' '.repeat(7 - teamField.display_value.length) 
+                            : teamField.display_value + ' '.repeat(3)
                         let sprintValueFormatted = sprintField.display_value.replace(/.*(Sprint \d+):.*/i, '$1');
                         sprintInBranch.add(sprintValueFormatted);
-                        console.log(`${sprintValueFormatted} - ${storyId} - ${result.name.substring(0, 140)}`);
+                        console.log(`${sprintValueFormatted} - ${teamValueFormatted} - ${storyId} - ${result.name.substring(0, 140)}`);
                     }
                 },
                 (error) => {
