@@ -68,9 +68,9 @@ class ReleaseValidator {
                     let sprintField = sprintFieldOld ? sprintFieldOld : sprintFieldNew;
                     
                     if (sprintField && sprintField.display_value) {
-                        let teamValueFormatted = teamField.display_value 
+                        let teamValueFormatted = teamField && teamField.display_value 
                             ? teamField.display_value + ' '.repeat(7 - teamField.display_value.length) 
-                            : teamField.display_value + ' '.repeat(3)
+                            : 'null' + ' '.repeat(3)
                         let sprintValueFormatted = sprintField.display_value.replace(/.*(Sprint \d+):.*/i, '$1');
                         sprintInBranch.add(sprintValueFormatted);
                         console.log(`${sprintValueFormatted} - ${teamValueFormatted} - ${storyId} - ${result.name.substring(0, 140)}`);
