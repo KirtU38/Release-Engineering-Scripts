@@ -1,7 +1,6 @@
 const terminal = require('child_process');
 const input = require('prompt-sync')();
 
-
 class ReleaseValidator {
 
     runInTerminal(command) {
@@ -13,14 +12,14 @@ class ReleaseValidator {
     }
 
     async run() {
-        let currentBranch = this.runInTerminal('');
         this.runInTerminal('git fetch --all');
         let branches = this.runInTerminal(`git branch -a | grep eg/`)
         console.log(`\nBranches: `);
         console.log(branches);
+        let response = input('Delete these branches? [y/n]: ');
+        if(response.trim() == 'n') process.exit(1);
 
         let branchesList = branches.split('\n');
-
         let localBranches = [];
         let remoteBranches = [];
         for (const branch of branchesList) {
@@ -32,8 +31,14 @@ class ReleaseValidator {
                 localBranches.push(branch.trim());
             }
         }
-        console.log(localBranches);
-        console.log(remoteBranches);
+        for (const localBranch of localBranches) {
+            this.runInTerminal(`git branch -D ${localBranch}`);
+        }
+        for (const remoteBranch of remoteBranches) {
+            this.runInTerminal(`git push -d origin ${remoteBranch.replace('remotes/origin/', '')}`);
+        }
+        console.log('Branches deleted!');
+        
     }
 }
 
