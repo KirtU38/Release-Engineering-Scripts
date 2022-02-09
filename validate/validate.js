@@ -1,6 +1,10 @@
 const terminal = require('child_process');
-const argParser = require('commander');
 
+const branchToOrg = new Map();
+branchToOrg.set('project/cpq', 'org_cpqqa');
+branchToOrg.set('CPQ', 'org_cpq');
+branchToOrg.set('develop', 'org_aquiva');
+branchToOrg.set('UAT', 'org_uat');
 
 class ReleaseValidator {
 
@@ -13,25 +17,26 @@ class ReleaseValidator {
     }
 
     async run() {
-        let currentBranch = this.runInTerminal('git rev-parse --abbrev-ref HEAD');
-        this.runInTerminal('git checkout master');
-        this.runInTerminal(`git branch -D ${currentBranch}`)
-        this.runInTerminal(`git checkout ${currentBranch}`)
-    }
+        let currentBranch = this.runInTerminal('git rev-parse --abbrev-ref HEAD').trim();
+        
+        let orgAlias = '';
+        let orgAliasArg = process.argv[2];
+        let orgAliasDefault = branchToOrg.get(currentBranch);
 
-    parseArguments() {
-        // argParser
-        //     .requiredOption('-u, --url <value>', 'URL of Asana Project. Example: -u https://app.asana.com/0/1201640226677955/list')
-        //     .option('-s, --sections [value]', "Sections in the project that need to be checked. Example: --sections 'ClickDeploy, Stories to Deploy'", defaultSections)
-        //     .option('-a, --all-sections', 'Check all Sections in a Project', false)
-        //     .option('-sp, --sprint [value]', "Filter checked tasks by Sprint. Example: --sprint 'Sprint 24'")
-        //     .option('-t, --token [value]', "You can pass Asana Access Token here, if Environment variable doesn't work. Example: --token '1/1200261289008160:0c75d3a830cfa6c7e7c6f8856cad3b21'")
-        //     .option('--short', 'Show problems only (marked as !!)', false)
-    
-        // return argParser.parse(process.argv).opts();
+        if(orgAliasArg) {
+            orgAlias = orgAliasArg;
+        } else {
+            orgAlias = orgAliasDefault;
+        }
+        
+        if(!orgAlias) process.exit(1);
+
+        let orgName = orgAlias.replace('org_', '');
+        console.log(`Validating ${currentBranch} on ${'.' + orgName}:`);
+        console.log(`https://asana--${orgName}.lightning.force.com/lightning/setup/DeployStatus/home`);
+
+        this.runInTerminal(`sfdx force:source:deploy -p force-app -u ${orgAlias} -l RunLocalTests -c`);
     }
-    
-    
 }
 
 // Prorgam run
