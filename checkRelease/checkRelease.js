@@ -124,16 +124,12 @@ class ReleaseValidator {
     }
     
     async getTasksFromSectionsJson(sections) {
-        let params = "gid,name";
-        if (this.arguments.sprint) {
-            params = `${params},custom_fields`;
-        }
-        
         console.log('Retrieving Tasks from Sections:');
         let jsonTasks = [];
         for (const section of sections) {
             console.log(section.name);
-    
+            
+            let params = "gid,name,custom_fields";
             await this.asanaClient.tasks.getTasksForSection(section.id, {opt_fields: `${params}`, opt_pretty: true})
                 .then(
                     (result) => {
@@ -160,9 +156,11 @@ class ReleaseValidator {
                         continue;
                     }
                 }
-    
+
+                let teamField = task.custom_fields.find((field) => field.name == 'Aquiva Team');
+                let teamValue = teamField && teamField.display_value ? `(${teamField.display_value})` : '';
                 let taskURL = `${this.baseURL}${task.gid}`;
-                let taskObject = new AsanaTask(task.name, task.gid, taskURL);
+                let taskObject = new AsanaTask(task.name, task.gid, taskURL, teamValue);
                 tasks.push(taskObject);
             }
         }
@@ -225,7 +223,7 @@ class ReleaseValidator {
             console.log(`!! Found ${task.branches.length} branches`);
         }
     
-        console.log(`   ${task.name} -> ${task.url}`);
+        console.log(`   ${task.team}${task.name.substring(0, 122)} -> ${task.url}`);
     
         if (task.branches.length == 0) {
             console.log(`   ${task.id} -> No Branch\n\n`);
@@ -268,14 +266,16 @@ class Section {
 class AsanaTask {
     name;
     id;
+    url;
+    team;
     branches;
     hasReverts;
-    url;
 
-    constructor(name, id, url) {
+    constructor(name, id, url, team) {
         this.name = name;
         this.id = id;
         this.url = url;
+        this.team = team;
         this.branches = [];
         this.hasReverts = undefined;
     }
