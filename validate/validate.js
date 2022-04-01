@@ -5,6 +5,7 @@ branchToOrg.set('project/cpq', 'org_cpqqa');
 branchToOrg.set('CPQ', 'org_cpq');
 branchToOrg.set('develop', 'org_aquiva');
 branchToOrg.set('UAT', 'org_uat');
+branchToOrg.set('project/gutenberg-1200713104757990', 'org_gutenberg');
 
 class ReleaseValidator {
 

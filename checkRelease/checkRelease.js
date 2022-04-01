@@ -4,7 +4,7 @@ const argParser = require('commander');
 
 //  Default variables
 const defaultSections = 'ClickDeploy,Stories to Deploy'
-const hardcodedAsanaToken = ''
+const hardcodedAsanaToken = '1/1200261239000160:c7a49faf0a16a4e88ce5469a271fea6a'
 const envVarName = "ASANA_TOKEN"
 
 class ReleaseValidator {
