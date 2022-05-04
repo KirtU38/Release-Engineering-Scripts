@@ -14,9 +14,14 @@ class ReleaseValidator {
 
     async run() {
         let currentBranch = this.runInTerminal('git rev-parse --abbrev-ref HEAD');
-        this.runInTerminal('git checkout master');
-        this.runInTerminal(`git branch -D ${currentBranch}`)
-        this.runInTerminal(`git checkout ${currentBranch}`)
+        if(currentBranch == 'master') {
+            this.runInTerminal('git checkout UAT');
+        } else {
+            this.runInTerminal('git checkout master');
+        }
+        this.runInTerminal(`git branch -D ${currentBranch}`);
+        this.runInTerminal(`git checkout ${currentBranch}`);
+        this.runInTerminal(`git pull`);
     }
 
     parseArguments() {
@@ -30,8 +35,6 @@ class ReleaseValidator {
     
         // return argParser.parse(process.argv).opts();
     }
-    
-    
 }
 
 // Prorgam run

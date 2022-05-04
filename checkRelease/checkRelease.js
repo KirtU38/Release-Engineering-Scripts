@@ -3,8 +3,8 @@ const terminal = require('child_process');
 const argParser = require('commander');
 
 //  Default variables
-const defaultSections = 'ClickDeploy,Stories to Deploy'
-const hardcodedAsanaToken = '1/1200261239000160:c7a49faf0a16a4e88ce5469a271fea6a'
+const defaultSections = 'ClickDeploy,Stories to Deploy,User Stories'
+const hardcodedAsanaToken = ''
 const envVarName = "ASANA_TOKEN"
 
 class ReleaseValidator {
@@ -223,7 +223,7 @@ class ReleaseValidator {
             console.log(`!! Found ${task.branches.length} branches`);
         }
     
-        console.log(`   ${task.team}${task.name.substring(0, 122)} -> ${task.url}`);
+        console.log(`   ${task.team}${task.name.substring(0, 120)} -> ${task.url}`);
     
         if (task.branches.length == 0) {
             console.log(`   ${task.id} -> No Branch\n\n`);
