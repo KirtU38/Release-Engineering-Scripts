@@ -14,7 +14,7 @@ class ReleaseValidator {
 
     async run() {
         let currentBranch = this.runInTerminal('git rev-parse --abbrev-ref HEAD');
-        if(currentBranch == 'master') {
+        if(currentBranch.trim() == 'master') {
             this.runInTerminal('git checkout UAT');
         } else {
             this.runInTerminal('git checkout master');
