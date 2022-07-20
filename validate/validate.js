@@ -6,6 +6,8 @@ branchToOrg.set('CPQ', 'org_cpq');
 branchToOrg.set('develop', 'org_aquiva');
 branchToOrg.set('UAT', 'org_uat');
 branchToOrg.set('project/gutenberg-1200713104757990', 'org_gutenberg');
+branchToOrg.set('dev', 'org_dev');
+branchToOrg.set('project/zuora-prorate-1202326472081710', 'org_cpqprorate');
 
 class ReleaseValidator {
 
