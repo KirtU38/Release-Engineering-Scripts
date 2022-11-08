@@ -4,6 +4,8 @@ const input = require('prompt-sync')();
 
 // glo UAT..develop
 // Показывает каких коммитов нет в UAT, которые есть в develop
+// glo UAT
+// Показывает каких коммитов нет в UAT, которые есть в текущей ветке
 class ReleaseValidator {
 
     runInTerminal(command) {
@@ -18,7 +20,7 @@ class ReleaseValidator {
         let inputArg = argv[2];
         let branch1 = '';
         let branch2 = '';
-        
+
         if(inputArg.includes('..')) {
             let branches = inputArg.split('..');
             branch1 = branches[0];
