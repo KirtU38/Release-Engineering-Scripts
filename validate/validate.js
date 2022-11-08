@@ -12,6 +12,7 @@ branchToOrg.set('project/true-up', 'org_trueup');
 branchToOrg.set('project/quarterly-billing-1202408684414738', 'org_qbilling');
 branchToOrg.set('QBILLUAT', 'org_qbilluat');
 branchToOrg.set('project/gold', 'org_gold');
+branchToOrg.set('project/rev-phase2', 'org_cpqphase2');
 
 class ReleaseValidator {
 
