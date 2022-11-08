@@ -16,7 +16,19 @@ class ReleaseValidator {
 
     async run() {
         let inputArg = argv[2];
-        const commitsDiff = this.runInTerminal(`git log --oneline ${inputArg}`);
+        let branch1 = '';
+        let branch2 = '';
+        
+        if(inputArg.includes('..')) {
+            let branches = inputArg.split('..');
+            branch1 = branches[0];
+            branch2 = branches[1];
+        } else {
+            branch1 = inputArg;
+            branch2 = this.runInTerminal(`git rev-parse --abbrev-ref HEAD`).trimEnd();
+        }
+
+        const commitsDiff = this.runInTerminal(`git log --oneline ${branch1}..${branch2}`);
         let commitsList = commitsDiff.split('\n');
 
         let commitsHasesList = [];
@@ -31,9 +43,7 @@ class ReleaseValidator {
         }
         finalString = finalString.substring(0, finalString.length - 2) + ')';
 
-        let branches = inputArg.split('..');
-
-        console.log(`${branches[0]} does NOT have these commits from ${branches[1]}:`);
+        console.log(`${branch1} does NOT have these commits from ${branch2}:`);
         console.log(finalString);
     }
 }
