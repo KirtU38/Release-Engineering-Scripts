@@ -33,14 +33,19 @@ class ReleaseValidator {
         const commitsDiff = this.runInTerminal(`git log --oneline ${branch1}..${branch2}`);
         let commitsList = commitsDiff.split('\n');
 
-        let commitsHasesList = [];
+        if(commitsList.length == 1) {
+            console.log(`${branch1} has all commits from ${branch2}`);
+            process.exit(1);
+        }
+
+        let commitsHashesList = [];
         for (const commit of commitsList) {
             console.log(commit.substring(0, 193));
-            commitsHasesList.push(commit.substring(0,9));
+            commitsHashesList.push(commit.substring(0,9));
         }
 
         let finalString = '(';
-        for (const hash of commitsHasesList) {
+        for (const hash of commitsHashesList) {
             finalString = finalString + hash + '|';
         }
         finalString = finalString.substring(0, finalString.length - 2) + ')';
