@@ -3,7 +3,7 @@ const terminal = require('child_process');
 const argParser = require('commander');
 
 //  Default variables
-const defaultSections = 'ClickDeploy,Stories to Deploy,User Stories'
+const defaultSections = 'ClickDeploy,Stories to Deploy,User Stories,Deployment'
 const hardcodedAsanaToken = ''
 const envVarName = "ASANA_TOKEN"
 

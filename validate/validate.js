@@ -2,12 +2,16 @@ const terminal = require('child_process');
 
 const branchToOrg = new Map();
 branchToOrg.set('project/cpq', 'org_cpqqa');
-branchToOrg.set('CPQ', 'org_cpq');
 branchToOrg.set('develop', 'org_aquiva');
+branchToOrg.set('CPQ', 'org_cpq');
+branchToOrg.set('dev', 'org_dev');
 branchToOrg.set('UAT', 'org_uat');
 branchToOrg.set('project/gutenberg-1200713104757990', 'org_gutenberg');
-branchToOrg.set('dev', 'org_dev');
 branchToOrg.set('project/zuora-prorate-1202326472081710', 'org_cpqprorate');
+branchToOrg.set('project/true-up', 'org_trueup');
+branchToOrg.set('project/quarterly-billing-1202408684414738', 'org_qbilling');
+branchToOrg.set('QBILLUAT', 'org_qbilluat');
+branchToOrg.set('project/gold', 'org_gold');
 
 class ReleaseValidator {
 
