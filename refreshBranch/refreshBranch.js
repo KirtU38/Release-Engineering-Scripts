@@ -17,7 +17,7 @@ class ReleaseValidator {
         if(currentBranch.trim() == 'main') {
             this.runInTerminal('git checkout UAT');
         } else {
-            this.runInTerminal('git checkout master');
+            this.runInTerminal('git checkout main');
         }
         this.runInTerminal(`git branch -D ${currentBranch}`);
         this.runInTerminal(`git checkout ${currentBranch}`);
