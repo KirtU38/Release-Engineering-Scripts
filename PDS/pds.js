@@ -1,6 +1,7 @@
 const asana = require('asana');
 const terminal = require('child_process');
 const argParser = require('commander');
+const input = require('prompt-sync')();
 
 //  Default variables
 const allSections = 'ClickDeploy,Stories to Deploy,User Stories,Deployment,Pre Deployment,Post Deployment'
@@ -24,7 +25,7 @@ class ReleaseValidator {
 
         const asanaToken = this.getAsanaToken();
         this.validateToken(asanaToken);
-        this.asanaClient = asana.Client.create().useAccessToken(asanaToken);
+        this.asanaClient = asana.Client.create({defaultHeaders: {'Asana-Enable': 'new_memberships'}}).useAccessToken(asanaToken);
     }
 
     runInTerminal(command) {
@@ -36,54 +37,69 @@ class ReleaseValidator {
     }
 
     async run() {
+        this.asanaClient.LOG_ASANA_CHANGE_WARNINGS = false
         let allSectionsStringList = this.arguments.sections.split(',').map((section) => section.trim().toUpperCase());
         let deploySectionsStringList = deploySections.split(',').map((section) => section.trim().toUpperCase());
 
         let sections = await this.getSections(allSectionsStringList);
         let deploySection = sections.find(section => deploySectionsStringList.includes(section.name))
 
-        console.log(deploySection);
-        console.log(sections);
-
         let tasksFromSectionsJson = await this.getTasksFromSectionsJson(deploySection);
-        console.log(tasksFromSectionsJson);
-        let tasks = this.getTaskObjectsList(tasksFromSectionsJson);
+        let taskObjects = this.getTaskObjectsList(tasksFromSectionsJson);
 
-        for (const task of tasks) {
+        for (const task of taskObjects) {
             await this.getSubtask(task)
         }
-        console.log(tasks);
 
         let preDsSection = sections.find(section => section.name.includes('PRE D'))
-        for (const task of tasks) {
-            for (const subTask of task.subTasks) {
-                if(subTask.name.search(rePre) >= 0) {
-                    console.log(subTask);
-                    await this.addSubtaskToPDSSection(subTask, preDsSection)
-                }
-            }
-        }
-
         let postDsSection = sections.find(section => section.name.includes('POST D'))
-        for (const task of tasks) {
-            for (const subTask of task.subTasks) {
-                if(subTask.name.search(rePost) >= 0) {
-                    console.log(subTask);
-                    await this.addSubtaskToPDSSection(subTask, postDsSection)
-                }
-            }
-        }
-
-
+        await this.addTasksToPdsSection(rePre, preDsSection, taskObjects)
+        await this.addTasksToPdsSection(rePost, postDsSection, taskObjects)
     }
 
-    async addSubtaskToPDSSection(subTask, section) {
-        console.log(subTask.gid);
-        console.log(section.id);
+    async addTasksToPdsSection(re, section, taskObjects) {
+        let pdsTasks = this.filterPdsTasks(re, taskObjects);
+        pdsTasks = this.getUserInput(pdsTasks, section)
+
+        for (const subTask of pdsTasks) {
+            if(subTask.name.search(re) >= 0) {
+                await this.addSubtaskToPdsSection(subTask, section)
+            }
+        }
+    }
+
+    filterPdsTasks(re, taskObjects) {
+        let pdsTasks = []
+        for (const task of taskObjects) {
+            for (const subTask of task.subTasks) {
+                if(subTask.name.search(re) >= 0) {
+                    pdsTasks.push(subTask)
+                }
+            }
+        }
+        return pdsTasks;
+    }
+
+    getUserInput(pdsTasks, section) {
+        let response = ''
+        while(response.trim() != 'y') {
+            console.log('==============================================================================================');
+            for (const pdsTask of pdsTasks) {
+                console.log(`${pdsTask.gid} - ${pdsTask.name}`);
+            }
+            console.log('==============================================================================================');
+            response = input(`Add these tasks to ${section.name} section? [y/n/<task id>]: `);
+            if(response.trim() == 'n') process.exit(1);
+            pdsTasks = pdsTasks.filter(task => task.gid != response.trim())
+        }
+        return pdsTasks;
+    }
+
+    async addSubtaskToPdsSection(subTask, section) {
         return await this.asanaClient.sections.addTaskForSection(section.id, {task: subTask.gid, opt_pretty: true})
             .then(
                 (result) => {
-                    console.log(result);
+                    console.log(`${subTask.gid} ${subTask.name} - added to ${section.name}`);
                 },
                 (error) => {
                     console.log(error);
@@ -150,13 +166,6 @@ class ReleaseValidator {
     }
     
     async getSections(chosenSectionsStringList) {
-        // let chosenSectionsStringList = []
-        // if (!this.arguments.allSections) {
-        //     if (this.arguments.sections) {
-        //         chosenSectionsStringList = this.arguments.sections.split(',').map((section) => section.trim().toUpperCase());
-        //     }
-        // }
-    
         return await this.asanaClient.sections.getSectionsForProject(this.projectId, {opt_pretty: true})
             .then(
                 (result) => {
@@ -169,15 +178,6 @@ class ReleaseValidator {
                         }
                     }
     
-                    return retrievedSectionsObjects;
-    
-                    // Check not found sections
-                    let retrievedSectionsNames = retrievedSectionsObjects.map((s) => s.name);
-                    for (const sectionName of chosenSectionsStringList) {
-                        if (!retrievedSectionsNames.includes(sectionName)) {
-                            console.log(`Section "${sectionName}" was not found`);
-                        }
-                    }
                     return retrievedSectionsObjects;
                 },
                 (error) => {
@@ -232,92 +232,6 @@ class ReleaseValidator {
             process.exit(1)
         }
         return tasks
-    }
-    
-    handleTasks(tasks) {
-        console.log('\n');
-    
-        for (const task of tasks) {
-            // Find remote Branches
-            let taskBranches = this.runInTerminal(`git branch --remotes | grep ${task.id} | tr '\n' ' '`);
-            if (!taskBranches && !this.arguments.short) {
-                this.printTask(task)
-                continue;
-            }
-    
-            // Add Branches to object
-            let taskBranchesSplit = taskBranches.trim().split(/\s+/);
-            for (const branch of taskBranchesSplit) {
-                task.branches.push(new Branch(branch.trim()));
-            }
-    
-            // Check for reverts
-            let revertCommits = this.runInTerminal(`git log --oneline | grep '${task.id}' | grep -i revert`);
-            if(!revertCommits) {
-                task.hasReverts = false;
-            }
-    
-            // Check if fully merged
-            if (task.branches.length > 0) {
-                for (const branch of task.branches) {
-                    let lastCommit = this.runInTerminal(`git log ${branch.name} -1 --oneline | awk '{print $1}'`);
-                    let lastCommitDate = this.runInTerminal(`git log ${branch.name} -1 --pretty=format:"%ad" --date=local`);
-                    let lastCommitDateRelative = this.runInTerminal(`git log ${branch.name} -1 --pretty=format:"%ad" --date=relative`);
-                    branch.lastDate = lastCommitDate;
-                    branch.lastDateRelative = lastCommitDateRelative;
-
-                    let lastCommitIsMerged = this.runInTerminal(`git log --oneline | grep ${lastCommit}`);
-                    if(!lastCommitIsMerged) {
-                        branch.isMerged = false;
-                    }
-                }
-            }
-    
-            // Skip tasks without problems when --short
-            if (this.arguments.short && task.isReady()) {
-                continue;
-            }
-            this.printTask(task)
-        }
-    }
-    
-    printTask(task) {
-        if (task.hasReverts) {
-            console.log('!! Has Reverts');
-        }
-        if (task.branches.length > 1) {
-            console.log(`!! Found ${task.branches.length} branches`);
-        }
-    
-        console.log(`   ${task.team}${task.name.substring(0, 120)} -> ${task.url}`);
-    
-        if (task.branches.length == 0) {
-            console.log(`   ${task.id} -> No Branch\n\n`);
-            return;
-        }
-        
-        for (const branch of task.branches) {
-            let okPrint = "!! "
-            let isMergedPrint = " -> NOT Merged"
-            if (branch.isMerged) {
-                okPrint = "OK "
-                isMergedPrint = " -> Merged"
-            }
-            console.log(`${okPrint}${task.id} -> ${branch.name} -> ${branch.lastDate} (${branch.lastDateRelative})${isMergedPrint}`)
-        }
-        console.log("\n")
-    }
-}
-
-class Branch {
-    name;
-    isMerged;
-    lastDate;
-    lastDateRelative;
-
-    constructor(name) {
-        this.name = name;
-        this.isMerged = true;
     }
 }
 

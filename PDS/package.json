@@ -11,6 +11,7 @@
   "license": "ISC",
   "dependencies": {
     "asana": "^0.18.14",
-    "commander": "^9.0.0"
+    "commander": "^9.0.0",
+    "prompt-sync": "^4.2.0"
   }
 }
