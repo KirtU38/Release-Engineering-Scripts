@@ -13,6 +13,7 @@ branchToOrg.set('project/quarterly-billing-1202408684414738', 'org_qbilling');
 branchToOrg.set('QBILLUAT', 'org_qbilluat');
 branchToOrg.set('project/gold', 'org_gold');
 branchToOrg.set('project/rev-phase2', 'org_cpqphase2');
+branchToOrg.set('QAPROJECTS', 'org_qaprojects');
 
 class ReleaseValidator {
 
@@ -41,7 +42,7 @@ class ReleaseValidator {
 
         let orgName = orgAlias.replace('org_', '');
         console.log(`Validating ${currentBranch} on ${'.' + orgName}:`);
-        console.log(`https://asana--${orgName}.lightning.force.com/lightning/setup/DeployStatus/home`);
+        console.log(`https://asana--${orgName}.sandbox.lightning.force.com/lightning/setup/DeployStatus/home`);
 
         this.runInTerminal(`sfdx force:source:deploy -p force-app -u ${orgAlias} -l RunLocalTests -c`);
     }

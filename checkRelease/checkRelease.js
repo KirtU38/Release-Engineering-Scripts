@@ -130,7 +130,7 @@ class ReleaseValidator {
             console.log(section.name);
             
             let params = "gid,name,custom_fields";
-            await this.asanaClient.tasks.getTasksForSection(section.id, {opt_fields: `${params}`, opt_pretty: true})
+            await this.asanaClient.tasks.getTasksForSection(section.id, {opt_fields: `${params}`, opt_pretty: true, limit: 100})
                 .then(
                     (result) => {
                         jsonTasks.push(result.data);
@@ -199,6 +199,10 @@ class ReleaseValidator {
             if (task.branches.length > 0) {
                 for (const branch of task.branches) {
                     let lastCommit = this.runInTerminal(`git log ${branch.name} -1 --oneline | awk '{print $1}'`);
+                    let lastCommitDate = this.runInTerminal(`git log ${branch.name} -1 --pretty=format:"%ad" --date=local`);
+                    let lastCommitDateRelative = this.runInTerminal(`git log ${branch.name} -1 --pretty=format:"%ad" --date=relative`);
+                    branch.lastDate = lastCommitDate;
+                    branch.lastDateRelative = lastCommitDateRelative;
 
                     let lastCommitIsMerged = this.runInTerminal(`git log --oneline | grep ${lastCommit}`);
                     if(!lastCommitIsMerged) {
@@ -237,7 +241,7 @@ class ReleaseValidator {
                 okPrint = "OK "
                 isMergedPrint = " -> Merged"
             }
-            console.log(`${okPrint}${task.id} -> ${branch.name}${isMergedPrint}`)
+            console.log(`${okPrint}${task.id} -> ${branch.name} -> ${branch.lastDate} (${branch.lastDateRelative})${isMergedPrint}`)
         }
         console.log("\n")
     }
@@ -246,6 +250,8 @@ class ReleaseValidator {
 class Branch {
     name;
     isMerged;
+    lastDate;
+    lastDateRelative;
 
     constructor(name) {
         this.name = name;
