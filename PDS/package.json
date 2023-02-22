@@ -1,8 +1,8 @@
 {
-  "name": "checkrelease",
+  "name": "pds",
   "version": "1.0.0",
   "description": "",
-  "main": "checkRelease.js",
+  "main": "pds.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -10,7 +10,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "asana": "^0.18.6",
+    "asana": "^0.18.14",
     "commander": "^9.0.0"
   }
 }

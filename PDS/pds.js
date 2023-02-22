@@ -7,6 +7,8 @@ const allSections = 'ClickDeploy,Stories to Deploy,User Stories,Deployment,Pre D
 const deploySections = 'ClickDeploy,Stories to Deploy,User Stories,Deployment'
 const hardcodedAsanaToken = ''
 const envVarName = "ASANA_TOKEN"
+const rePre = /.*preds.*|.*pre.*depl.*|.*pre.*ds.*/gi;
+const rePost = /.*postds.*|.*post.*depl.*|.*post.*ds.*|pds/gi;
 
 class ReleaseValidator {
     arguments;
@@ -47,51 +49,57 @@ class ReleaseValidator {
         console.log(tasksFromSectionsJson);
         let tasks = this.getTaskObjectsList(tasksFromSectionsJson);
 
-        let asd = [];
         for (const task of tasks) {
-            let subTasks = await this.getSubtask(tasks)
-            asd.push(subTasks);
+            await this.getSubtask(task)
         }
-        console.log(asd);
-
-
-
-
         console.log(tasks);
-        // this.handleTasks(tasks);
+
+        let preDsSection = sections.find(section => section.name.includes('PRE D'))
+        for (const task of tasks) {
+            for (const subTask of task.subTasks) {
+                if(subTask.name.search(rePre) >= 0) {
+                    console.log(subTask);
+                    await this.addSubtaskToPDSSection(subTask, preDsSection)
+                }
+            }
+        }
+
+        let postDsSection = sections.find(section => section.name.includes('POST D'))
+        for (const task of tasks) {
+            for (const subTask of task.subTasks) {
+                if(subTask.name.search(rePost) >= 0) {
+                    console.log(subTask);
+                    await this.addSubtaskToPDSSection(subTask, postDsSection)
+                }
+            }
+        }
+
+
+    }
+
+    async addSubtaskToPDSSection(subTask, section) {
+        console.log(subTask.gid);
+        console.log(section.id);
+        return await this.asanaClient.sections.addTaskForSection(section.id, {task: subTask.gid, opt_pretty: true})
+            .then(
+                (result) => {
+                    console.log(result);
+                },
+                (error) => {
+                    console.log(error);
+                    process.exit(1);
+                }
+            );
     }
 
     async getSubtask(task) {
-        return await this.asanaClient.tasks.getSubtasksForTask(task.Id, {opt_pretty: true})
+        return await this.asanaClient.tasks.getSubtasksForTask(task.id, {opt_pretty: true})
             .then(
                 (result) => {
-                    console.log('EGORRRRR');
-                    console.log(result);
-
-
-
-                    let jsonSections = result.data;
-
-                    let retrievedSectionsObjects = [];
-                    for (const section of jsonSections) {
-                        if (this.arguments.allSections || chosenSectionsStringList.includes(section.name.toUpperCase())) {
-                            retrievedSectionsObjects.push(new Section(section.name.toUpperCase(), section.gid));
-                        }
-                    }
-
-                    return retrievedSectionsObjects;
-
-                    // Check not found sections
-                    let retrievedSectionsNames = retrievedSectionsObjects.map((s) => s.name);
-                    for (const sectionName of chosenSectionsStringList) {
-                        if (!retrievedSectionsNames.includes(sectionName)) {
-                            console.log(`Section "${sectionName}" was not found`);
-                        }
-                    }
-                    return retrievedSectionsObjects;
+                    task.subTasks = result.data;
                 },
                 (error) => {
-                    console.log(`Project with ID ${this.projectId} doesn't exist`);
+                    console.log(error);
                     process.exit(1);
                 }
             );
@@ -330,6 +338,7 @@ class AsanaTask {
     team;
     branches;
     hasReverts;
+    subTasks;
 
     constructor(name, id, url, team) {
         this.name = name;
