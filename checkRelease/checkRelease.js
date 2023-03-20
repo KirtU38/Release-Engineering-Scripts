@@ -28,7 +28,8 @@ class ReleaseValidator {
         let sections = await this.getSections();
         let tasksFromSectionsJson = await this.getTasksFromSectionsJson(sections);
         let tasks = this.getTaskObjectsList(tasksFromSectionsJson);
-        this.handleTasks(tasks);
+        this.handleBranches(tasks);
+        this.printTasks(tasks);
     }
 
     runInTerminal(command) {
@@ -170,14 +171,11 @@ class ReleaseValidator {
         return tasks
     }
     
-    handleTasks(tasks) {
-        console.log('\n');
-    
+    handleBranches(tasks) {
         for (const task of tasks) {
             // Find remote Branches
             let taskBranches = this.runInTerminal(`git branch --remotes | grep ${task.id} | tr '\n' ' '`);
             if (!taskBranches && !this.arguments.short) {
-                this.printTask(task)
                 continue;
             }
     
@@ -209,12 +207,30 @@ class ReleaseValidator {
                     }
                 }
             }
-    
+        }
+    }
+
+    printTasks(tasks) {
+        console.log('\n');
+
+        // Sort by date
+        tasks.sort((a,b) => {
+            if(a.branches.length == 0) {
+                return -1;
+            } 
+            if(b.branches.length == 0) {
+                return 1;
+            }
+
+            return a.branches[0].lastCommitDateObject - b.branches[0].lastCommitDateObject;
+        });
+
+        for (const task of tasks) {
             // Skip tasks without problems when --short
             if (this.arguments.short && task.isReady()) {
                 continue;
             }
-            this.printTask(task)
+            this.printTask(task);
         }
     }
     
