@@ -24,21 +24,19 @@ class ReleaseValidator {
         this.asanaClient = asana.Client.create({defaultHeaders: {'Asana-Enable': 'new_memberships'}}).useAccessToken(asanaToken);
     }
 
+    async run() {
+        let sections = await this.getSections();
+        let tasksFromSectionsJson = await this.getTasksFromSectionsJson(sections);
+        let tasks = this.getTaskObjectsList(tasksFromSectionsJson);
+        this.handleTasks(tasks);
+    }
+
     runInTerminal(command) {
         try {
             return terminal.execSync(command).toString();
         } catch (error) {
             return null;
         }
-    }
-
-    async run() {
-        let sections = await this.getSections();
-        let tasksFromSectionsJson = await this.getTasksFromSectionsJson(sections);
-        let tasks = this.getTaskObjectsList(tasksFromSectionsJson);
-        // tasks.push(new AsanaTask('Task dummy', 1201636415789062, 'TestURL')) 
-        // tasks.push(new AsanaTask('Task dummy 1', 1200783749941177, 'TestURL'))
-        this.handleTasks(tasks);
     }
 
     parseArguments() {
@@ -199,10 +197,11 @@ class ReleaseValidator {
             if (task.branches.length > 0) {
                 for (const branch of task.branches) {
                     let lastCommit = this.runInTerminal(`git log ${branch.name} -1 --oneline | awk '{print $1}'`);
-                    let lastCommitDate = this.runInTerminal(`git log ${branch.name} -1 --pretty=format:"%ad" --date=local`);
-                    let lastCommitDateRelative = this.runInTerminal(`git log ${branch.name} -1 --pretty=format:"%ad" --date=relative`);
-                    branch.lastDate = lastCommitDate;
-                    branch.lastDateRelative = lastCommitDateRelative;
+                    let lastCommitDateAbs = this.runInTerminal(`git log ${branch.name} -1 --pretty=format:"%ad" --date=local`);
+                    let lastCommitDateRel = this.runInTerminal(`git log ${branch.name} -1 --pretty=format:"%ad" --date=relative`);
+                    branch.lastCommitDateAbsolute = lastCommitDateAbs;
+                    branch.lastCommitDateRelative = lastCommitDateRel;
+                    branch.lastCommitDateObject = new Date(lastCommitDateAbs);
 
                     let lastCommitIsMerged = this.runInTerminal(`git log --oneline | grep ${lastCommit}`);
                     if(!lastCommitIsMerged) {
@@ -241,7 +240,7 @@ class ReleaseValidator {
                 okPrint = "OK "
                 isMergedPrint = " -> Merged"
             }
-            console.log(`${okPrint}${task.id} -> ${branch.name} -> ${branch.lastDate} (${branch.lastDateRelative})${isMergedPrint}`)
+            console.log(`${okPrint}${task.id} -> ${branch.name} -> ${branch.lastCommitDateAbsolute} (${branch.lastCommitDateRelative})${isMergedPrint}`)
         }
         console.log("\n")
     }
@@ -250,8 +249,9 @@ class ReleaseValidator {
 class Branch {
     name;
     isMerged;
-    lastDate;
-    lastDateRelative;
+    lastCommitDateObject;
+    lastCommitDateAbsolute;
+    lastCommitDateRelative;
 
     constructor(name) {
         this.name = name;

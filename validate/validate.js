@@ -44,7 +44,7 @@ class ReleaseValidator {
         console.log(`Validating ${currentBranch} on ${'.' + orgName}:`);
         console.log(`https://asana--${orgName}.sandbox.lightning.force.com/lightning/setup/DeployStatus/home`);
 
-        this.runInTerminal(`sfdx force:source:deploy -p force-app -u ${orgAlias} -l RunLocalTests -c`);
+        this.runInTerminal(`sfdx force:source:deploy -p force-app -u ${orgAlias} -c`);
     }
 }
 

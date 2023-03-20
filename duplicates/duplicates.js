@@ -1,6 +1,16 @@
 const terminal = require('child_process');
 const fs = require('fs')
 
+let fileTypeToMarkers = {
+    'profile-meta': [
+        {'<apexClass>': null},
+        {'<field>': null}
+    ],
+    'layout-meta': [
+        {'<field>': '<layoutItems>'}
+    ]
+}
+
 class ReleaseValidator {
 
     runInTerminal(command) {
@@ -13,17 +23,37 @@ class ReleaseValidator {
 
     async run() {
         let filePath = process.argv[2];
+        let match = filePath.match(/.+\.(.+)\.\w+/i);
+        let fileType = match[1];
         
         let file = fs.readFileSync(filePath, 'utf8');
         let fileSplit = file.split('\n').map((line) => line.trim());
 
         let linesArray = [];
+        let tagsSequence = [];
         for (const line of fileSplit) {
+
+            if(line.match(/\s*<\w+>\s*$/i)?.index == 0) {
+                tagsSequence.push(line);
+            } else if (line.match(/\s*<\/\w+>\s*$/i)?.index == 0) {
+                tagsSequence.pop();
+            }
+
             let lineObj = linesArray.find((lineObj) => lineObj.label == line);
-            if(lineObj) {
-                lineObj.count++;
-            } else {
+            if(!fileTypeToMarkers[fileType]) {
                 linesArray.push(new Line(line));
+                continue;
+            }
+            for (const markerObj of fileTypeToMarkers[fileType]) {
+                for (const marker in markerObj) {
+                    if(!markerObj[marker] || tagsSequence[tagsSequence.length - 1] == markerObj[marker]) {
+                        if(lineObj) {
+                            lineObj.count++;
+                        } else if(line.startsWith(marker)) {
+                            linesArray.push(new Line(line));
+                        }
+                    }
+                }
             }
         }
 
