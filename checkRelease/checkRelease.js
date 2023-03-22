@@ -242,7 +242,7 @@ class ReleaseValidator {
             console.log(`!! Found ${task.branches.length} branches`);
         }
     
-        console.log(`   ${task.team}${task.name.substring(0, 120)} -> ${task.url}`);
+        console.log(`   ${task.team}${task.name.substring(0, 70)} -> ${task.url}`);
     
         if (task.branches.length == 0) {
             console.log(`   ${task.id} -> No Branch\n\n`);

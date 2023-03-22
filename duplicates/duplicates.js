@@ -31,6 +31,7 @@ class ReleaseValidator {
 
         let linesArray = [];
         let tagsSequence = [];
+
         for (const line of fileSplit) {
 
             if(line.match(/\s*<\w+>\s*$/i)?.index == 0) {
@@ -44,12 +45,15 @@ class ReleaseValidator {
                 linesArray.push(new Line(line));
                 continue;
             }
-            for (const markerObj of fileTypeToMarkers[fileType]) {
-                for (const marker in markerObj) {
-                    if(!markerObj[marker] || tagsSequence[tagsSequence.length - 1] == markerObj[marker]) {
+            for (const markerObject of fileTypeToMarkers[fileType]) {
+                for (const marker in markerObject) {
+                    if(!markerObject[marker] || tagsSequence[tagsSequence.length - 1] == markerObject[marker]) {
+                        if(!line.startsWith(marker)) {
+                            continue;
+                        }
                         if(lineObj) {
                             lineObj.count++;
-                        } else if(line.startsWith(marker)) {
+                        } else {
                             linesArray.push(new Line(line));
                         }
                     }

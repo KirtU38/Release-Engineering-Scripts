@@ -28,14 +28,6 @@ class ReleaseValidator {
         this.asanaClient = asana.Client.create({defaultHeaders: {'Asana-Enable': 'new_memberships'}}).useAccessToken(asanaToken);
     }
 
-    runInTerminal(command) {
-        try {
-            return terminal.execSync(command).toString();
-        } catch (error) {
-            return null;
-        }
-    }
-
     async run() {
         this.asanaClient.LOG_ASANA_CHANGE_WARNINGS = false
         let allSectionsStringList = this.arguments.sections.split(',').map((section) => section.trim().toUpperCase());
@@ -57,13 +49,21 @@ class ReleaseValidator {
         await this.addTasksToPdsSection(rePost, postDsSection, taskObjects)
     }
 
+    runInTerminal(command) {
+        try {
+            return terminal.execSync(command).toString();
+        } catch (error) {
+            return null;
+        }
+    }
+
     async addTasksToPdsSection(re, section, taskObjects) {
         let pdsTasks = this.filterPdsTasks(re, taskObjects);
-        pdsTasks = this.getUserInput(pdsTasks, section)
+        pdsTasks = this.getUserInput(pdsTasks, section);
 
         for (const subTask of pdsTasks) {
             if(subTask.name.search(re) >= 0) {
-                await this.addSubtaskToPdsSection(subTask, section)
+                await this.addSubtaskToPdsSection(subTask, section);
             }
         }
     }
@@ -89,7 +89,9 @@ class ReleaseValidator {
             }
             console.log('==============================================================================================');
             response = input(`Add these tasks to ${section.name} section? [y/n/<task id>]: `);
-            if(response.trim() == 'n') process.exit(1);
+            if(response.trim() == 'n') {
+                return [];  
+            } 
             pdsTasks = pdsTasks.filter(task => task.gid != response.trim())
         }
         return pdsTasks;
