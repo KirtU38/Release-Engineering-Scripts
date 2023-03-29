@@ -21,7 +21,7 @@ class ReleaseValidator {
 
         const asanaToken = this.getAsanaToken();
         this.validateToken(asanaToken);
-        this.asanaClient = asana.Client.create({defaultHeaders: {'Asana-Enable': 'new_memberships'}}).useAccessToken(asanaToken);
+        this.asanaClient = asana.Client.create({defaultHeaders: {'Asana-Enable': 'new_memberships,new_goal_memberships'}}).useAccessToken(asanaToken);
     }
 
     async run() {
