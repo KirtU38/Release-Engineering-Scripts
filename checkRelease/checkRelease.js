@@ -25,6 +25,7 @@ class ReleaseValidator {
     }
 
     async run() {
+        this.runInTerminal(`git fetch --all`);
         let sections = await this.getSections();
         let tasksFromSectionsJson = await this.getTasksFromSectionsJson(sections);
         let tasks = this.getTaskObjectsList(tasksFromSectionsJson);

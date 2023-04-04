@@ -13,13 +13,15 @@ class ReleaseValidator {
     constructor() {
         const asanaToken = this.getAsanaToken();
         this.validateToken(asanaToken);
-        this.asanaClient = asana.Client.create().useAccessToken(asanaToken);
+        this.asanaClient = asana.Client.create({defaultHeaders: {'Asana-Enable': 'new_memberships,new_goal_memberships'}}).useAccessToken(asanaToken);
     }
 
     runInTerminal(command) {
         try {
             return terminal.execSync(command).toString();
         } catch (error) {
+            console.log('WTF');
+            console.log(error);
             return null;
         }
     }
@@ -29,7 +31,8 @@ class ReleaseValidator {
         let storiesToCheck = argStoriesToCheck ? argStoriesToCheck : defaultStoriesToCheck;
         console.log(storiesToCheck);
 
-        let commitsString = this.runInTerminal(`git log --oneline`);
+        let commitsString = this.runInTerminal(`git log -n ${defaultStoriesToCheck} --oneline`);
+        console.log(commitsString);
         let commitsArray = commitsString.split('\n');
 
         let otherCommits = [];

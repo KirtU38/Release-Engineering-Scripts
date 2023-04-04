@@ -14,11 +14,14 @@ class ReleaseValidator {
 
     async run() {
         let currentBranch = this.runInTerminal('git rev-parse --abbrev-ref HEAD');
-        if(currentBranch.trim() == 'main') {
-            this.runInTerminal('git checkout UAT');
-        } else {
-            this.runInTerminal('git checkout main');
-        }
+        this.runInTerminal('git checkout -');
+
+        // if(currentBranch.trim() == 'main') {
+        //     this.runInTerminal('git checkout UAT');
+        // } else {
+        //     this.runInTerminal('git checkout main');
+        // }
+
         this.runInTerminal(`git branch -D ${currentBranch}`);
         this.runInTerminal(`git checkout ${currentBranch}`);
         this.runInTerminal(`git pull`);
