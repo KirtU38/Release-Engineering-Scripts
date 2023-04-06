@@ -265,6 +265,9 @@ class ReleaseValidator {
         let exclamationMark = '\u2757';
         let redCross = '\u274C';
         let checkMark = '\u2705';
+        let clock = '\uD83D\uDD5B';
+        let arrow = '\u27A3';
+        let link = '\uD83D\uDD17';
 
         if (task.hasReverts) {
             console.log(`${exclamationMark} Has Reverts`);
@@ -273,10 +276,10 @@ class ReleaseValidator {
             console.log(`${exclamationMark} Found ${task.branches.length} branches`);
         }
     
-        console.log(`   ${task.team}${task.name.substring(0, 70)} -> ${task.url}`);
+        console.log(`   ${task.team}${task.name.substring(0, 70)} ${link} ${task.url}`);
     
         if (task.branches.length == 0) {
-            console.log(`   ${task.id} -> No Branch\n\n`);
+            console.log(`   ${task.id} ${arrow} No Branch\n\n`);
             return;
         }
         
@@ -287,7 +290,7 @@ class ReleaseValidator {
                 okPrint = `${checkMark} `;
                 // isMergedPrint = " -> Merged";
             }
-            console.log(`${okPrint}${task.id} -> ${branch.name} -> ${branch.getFormattedDate()} (${branch.lastCommitDateRelative})`)
+            console.log(`${okPrint}${task.id} ${arrow} ${branch.name} ${clock} ${branch.getFormattedDate()} (${branch.lastCommitDateRelative})`)
         }
         console.log("\n");
     }
@@ -344,11 +347,5 @@ class AsanaTask {
 }
 
 // Prorgam run
-
-
-// let asd = new Date('Tue Mar 21 11:13:02 2023');
-// console.log(asd.getDate());
-// console.log(asd.getMonth() + 1);
-// console.log(asd.getFullYear());
 const releaseValidator = new ReleaseValidator();
 releaseValidator.run();
