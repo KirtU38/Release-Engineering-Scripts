@@ -1,11 +1,13 @@
-const asana = require('asana');
-const terminal = require('child_process');
-const argParser = require('commander');
+import terminal from 'child_process';
+import asana from 'asana';
+import spinner from 'ora';
+import { Command } from 'commander'
+const argParser = new Command();
 
 //  Default variables
-const defaultSections = 'ClickDeploy,Stories to Deploy,User Stories,Deployment'
-const hardcodedAsanaToken = ''
-const envVarName = "ASANA_TOKEN"
+const defaultSections = 'ClickDeploy,Stories to Deploy,User Stories,Deployment';
+const hardcodedAsanaToken = '';
+const envVarName = "ASANA_TOKEN";
 
 class ReleaseValidator {
     arguments;
@@ -25,7 +27,7 @@ class ReleaseValidator {
     }
 
     async run() {
-        this.runInTerminal(`git fetch --all`);
+        this.fetchOrigin();
         let sections = await this.getSections();
         let tasksFromSectionsJson = await this.getTasksFromSectionsJson(sections);
         let tasks = this.getTaskObjectsList(tasksFromSectionsJson);
@@ -33,9 +35,17 @@ class ReleaseValidator {
         this.printTasks(tasks);
     }
 
-    runInTerminal(command) {
+    fetchOrigin() {
+        let sp = spinner('Fetching Origin');
+        sp.start();
+        terminal.execSync(`git fetch --all`, {stdio: 'ignore'});
+        sp.succeed();
+    }
+
+    runInTerminal(command, showOutput = false) {
         try {
-            return terminal.execSync(command).toString();
+            const stdioOption = showOutput ? 'inherit' : 'pipe';
+            return terminal.execSync(command, { stdio: stdioOption }).toString();
         } catch (error) {
             return null;
         }
@@ -69,13 +79,17 @@ class ReleaseValidator {
     }
     
     validateToken(token) {
-        terminal.exec(`curl -X GET https://app.asana.com/api/1.0/users/me -H 'Authorization: Bearer ${token}'`, (error, stdout, stderr) => {
-            if (stdout.includes('Not Authorized')) {
-                console.log('Your Asana Access Token is not authorized');
-                process.exit(1);
-            }
-        })
-        console.log(`Authorization: OK`);
+        let sp = spinner('Authorization');
+        sp.start();
+
+        // let authResult = this.runInTerminal(`curl -X GET https://app.asana.com/api/1.0/users/me -H 'Authorization: Bearer ${token}'`);
+        // let authResult = terminal.execSync(`curl -X GET https://app.asana.com/api/1.0/users/me -H 'Authorization: Bearer ${token}'`, {stdio:'pipe'}).toString();
+        let authResult = this.runInTerminal(`curl -X GET https://app.asana.com/api/1.0/users/me -H 'Authorization: Bearer ${token}'`);
+        if(authResult.includes('Not Authorized')) {
+            sp.fail('Your Asana Access Token is not authorized');
+            process.exit(1);
+        }
+        sp.succeed();
     }
     
     validateProjectId() {
@@ -86,6 +100,9 @@ class ReleaseValidator {
     }
     
     async getSections() {
+        let sp = spinner('Get Sections');
+        sp.start();
+
         let chosenSectionsStringList = []
         if (!this.arguments.allSections) {
             if (this.arguments.sections) {
@@ -96,6 +113,7 @@ class ReleaseValidator {
         return await this.asanaClient.sections.getSectionsForProject(this.projectId, {opt_pretty: true})
             .then(
                 (result) => {
+                    sp.succeed();
                     let jsonSections = result.data;
     
                     let retrievedSectionsObjects = [];
@@ -108,34 +126,35 @@ class ReleaseValidator {
                     if (this.arguments.allSections) return retrievedSectionsObjects;
     
                     // Check not found sections
-                    let retrievedSectionsNames = retrievedSectionsObjects.map((s) => s.name);
-                    for (const sectionName of chosenSectionsStringList) {
-                        if (!retrievedSectionsNames.includes(sectionName)) {
-                            console.log(`Section "${sectionName}" was not found`);
-                        }
-                    }
+                    // let retrievedSectionsNames = retrievedSectionsObjects.map((s) => s.name);
+                    // for (const sectionName of chosenSectionsStringList) {
+                    //     if (!retrievedSectionsNames.includes(sectionName)) {
+                    //         console.log(`Section "${sectionName}" was not found`);
+                    //     }
+                    // }
                     return retrievedSectionsObjects;
                 },
                 (error) => {
-                    console.log(`Project with ID ${this.projectId} doesn't exist`);
+                    sp.fail(`Project with ID ${this.projectId} doesn't exist`);
                     process.exit(1);
                 }
             );
     }
     
     async getTasksFromSectionsJson(sections) {
-        console.log('Retrieving Tasks from Sections:');
         let jsonTasks = [];
         for (const section of sections) {
-            console.log(section.name);
-            
+            let sp = spinner(`Retrieving Tasks from Section: ${section.name}`);
+            sp.start();
             let params = "gid,name,custom_fields";
             await this.asanaClient.tasks.getTasksForSection(section.id, {opt_fields: `${params}`, opt_pretty: true, limit: 100})
                 .then(
                     (result) => {
+                        sp.succeed();
                         jsonTasks.push(result.data);
                     },
                     (error) => {
+                        sp.fail();
                         console.log(error);
                     }
                 );
@@ -174,9 +193,12 @@ class ReleaseValidator {
     
     handleBranches(tasks) {
         for (const task of tasks) {
+            let sp = spinner(`Handling task: ${task.name}`);
+            sp.start();
             // Find remote Branches
             let taskBranches = this.runInTerminal(`git branch --remotes | grep ${task.id} | tr '\n' ' '`);
             if (!taskBranches && !this.arguments.short) {
+                sp.succeed();
                 continue;
             }
     
@@ -208,11 +230,12 @@ class ReleaseValidator {
                     }
                 }
             }
+            sp.succeed();
         }
     }
 
     printTasks(tasks) {
-        console.log('\n');
+        console.log('\n' + '='.repeat(120) + '\n');
 
         // Sort by date
         tasks.sort((a,b) => {
@@ -237,10 +260,10 @@ class ReleaseValidator {
     
     printTask(task) {
         if (task.hasReverts) {
-            console.log('!! Has Reverts');
+            console.log(`\u2757 Has Reverts`);
         }
         if (task.branches.length > 1) {
-            console.log(`!! Found ${task.branches.length} branches`);
+            console.log(`\u2757 Found ${task.branches.length} branches`);
         }
     
         console.log(`   ${task.team}${task.name.substring(0, 70)} -> ${task.url}`);
@@ -251,10 +274,10 @@ class ReleaseValidator {
         }
         
         for (const branch of task.branches) {
-            let okPrint = "!! "
+            let okPrint = "\x1b[31m\u2716\x1b[0m "
             let isMergedPrint = " -> NOT Merged"
             if (branch.isMerged) {
-                okPrint = "OK "
+                okPrint = "\u2714 "
                 isMergedPrint = " -> Merged"
             }
             console.log(`${okPrint}${task.id} -> ${branch.name} -> ${branch.lastCommitDateAbsolute} (${branch.lastCommitDateRelative})${isMergedPrint}`)
@@ -310,4 +333,4 @@ class AsanaTask {
 
 // Prorgam run
 const releaseValidator = new ReleaseValidator();
-releaseValidator.run()
+releaseValidator.run();
