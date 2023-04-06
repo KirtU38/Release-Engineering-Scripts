@@ -100,7 +100,7 @@ class ReleaseValidator {
     }
     
     async getSections() {
-        let sp = spinner('Get Sections');
+        let sp = spinner('Retrieving Sections');
         sp.start();
 
         let chosenSectionsStringList = []
