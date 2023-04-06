@@ -7,7 +7,9 @@ let fileTypeToMarkers = {
         {'<field>': null}
     ],
     'layout-meta': [
-        {'<field>': '<layoutItems>'}
+        {'<field>': '<layoutItems>'},
+        {'<actionName>': null},
+        {'<sortOrder>': null}
     ]
 }
 
