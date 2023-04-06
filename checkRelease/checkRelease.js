@@ -30,16 +30,9 @@ class ReleaseValidator {
         this.fetchOrigin();
         let sections = await this.getSections();
         let tasksFromSectionsJson = await this.getTasksFromSectionsJson(sections);
-        let tasks = this.getTaskObjectsList(tasksFromSectionsJson);
+        let tasks = this.getListOfTaskObjects(tasksFromSectionsJson);
         this.handleBranches(tasks);
         this.printTasks(tasks);
-    }
-
-    fetchOrigin() {
-        let sp = spinner('Fetching Origin');
-        sp.start();
-        terminal.execSync(`git fetch --all`, {stdio: 'ignore'});
-        sp.succeed();
     }
 
     runInTerminal(command, showOutput = false) {
@@ -97,6 +90,13 @@ class ReleaseValidator {
             console.log('Project ID is invalid, it must be 16 characters, numbers only');
             process.exit(1);
         }
+    }
+
+    fetchOrigin() {
+        let sp = spinner('Fetching Origin');
+        sp.start();
+        terminal.execSync(`git fetch --all`, {stdio: 'ignore'});
+        sp.succeed();
     }
     
     async getSections() {
@@ -162,7 +162,7 @@ class ReleaseValidator {
         return jsonTasks;
     }
     
-    getTaskObjectsList(sectionsWithTasks) {
+    getListOfTaskObjects(sectionsWithTasks) {
         let tasks  = [];
         for (const tasksForSection of sectionsWithTasks) {
             for (const task of tasksForSection) {
@@ -192,13 +192,13 @@ class ReleaseValidator {
     }
     
     handleBranches(tasks) {
+        let sp = spinner(`Handling tasks: `);
+        sp.start();
         for (const task of tasks) {
-            let sp = spinner(`Handling task: ${task.name}`);
-            sp.start();
+            process.stdout.write('|')
             // Find remote Branches
             let taskBranches = this.runInTerminal(`git branch --remotes | grep ${task.id} | tr '\n' ' '`);
             if (!taskBranches && !this.arguments.short) {
-                sp.succeed();
                 continue;
             }
     
@@ -218,7 +218,7 @@ class ReleaseValidator {
             if (task.branches.length > 0) {
                 for (const branch of task.branches) {
                     let lastCommit = this.runInTerminal(`git log ${branch.name} -1 --oneline | awk '{print $1}'`);
-                    let lastCommitDateAbs = this.runInTerminal(`git log ${branch.name} -1 --pretty=format:"%ad" --date=local`);
+                    let lastCommitDateAbs = this.runInTerminal(`git log ${branch.name} -1 --pretty=format:"%ad" --date=format:'%d.%m.%Y'`);
                     let lastCommitDateRel = this.runInTerminal(`git log ${branch.name} -1 --pretty=format:"%ad" --date=relative`);
                     branch.lastCommitDateAbsolute = lastCommitDateAbs;
                     branch.lastCommitDateRelative = lastCommitDateRel;
@@ -230,8 +230,8 @@ class ReleaseValidator {
                     }
                 }
             }
-            sp.succeed();
         }
+        sp.succeed();
     }
 
     printTasks(tasks) {
@@ -259,11 +259,15 @@ class ReleaseValidator {
     }
     
     printTask(task) {
+        let exclamationMark = '\u2757';
+        let redCross = '\u274C';
+        let checkMark = '\u2705';
+
         if (task.hasReverts) {
-            console.log(`\u2757 Has Reverts`);
+            console.log(`${exclamationMark} Has Reverts`);
         }
         if (task.branches.length > 1) {
-            console.log(`\u2757 Found ${task.branches.length} branches`);
+            console.log(`${exclamationMark} Found ${task.branches.length} branches`);
         }
     
         console.log(`   ${task.team}${task.name.substring(0, 70)} -> ${task.url}`);
@@ -274,15 +278,15 @@ class ReleaseValidator {
         }
         
         for (const branch of task.branches) {
-            let okPrint = "\x1b[31m\u2716\x1b[0m "
-            let isMergedPrint = " -> NOT Merged"
+            let okPrint = `${redCross} `;
+            // let isMergedPrint = " -> NOT Merged";
             if (branch.isMerged) {
-                okPrint = "\u2714 "
-                isMergedPrint = " -> Merged"
+                okPrint = `${checkMark} `;
+                // isMergedPrint = " -> Merged";
             }
-            console.log(`${okPrint}${task.id} -> ${branch.name} -> ${branch.lastCommitDateAbsolute} (${branch.lastCommitDateRelative})${isMergedPrint}`)
+            console.log(`${okPrint}${task.id} -> ${branch.name} -> ${branch.lastCommitDateAbsolute} (${branch.lastCommitDateRelative})`)
         }
-        console.log("\n")
+        console.log("\n");
     }
 }
 
