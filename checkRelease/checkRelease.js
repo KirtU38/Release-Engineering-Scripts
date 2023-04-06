@@ -218,7 +218,8 @@ class ReleaseValidator {
             if (task.branches.length > 0) {
                 for (const branch of task.branches) {
                     let lastCommit = this.runInTerminal(`git log ${branch.name} -1 --oneline | awk '{print $1}'`);
-                    let lastCommitDateAbs = this.runInTerminal(`git log ${branch.name} -1 --pretty=format:"%ad" --date=format:'%d.%m.%Y'`);
+                    // let lastCommitDateAbs = this.runInTerminal(`git log ${branch.name} -1 --pretty=format:"%ad" --date=format:'%d.%m.%Y'`);
+                    let lastCommitDateAbs = this.runInTerminal(`git log ${branch.name} -1 --pretty=format:"%ad" --date=local`);
                     let lastCommitDateRel = this.runInTerminal(`git log ${branch.name} -1 --pretty=format:"%ad" --date=relative`);
                     branch.lastCommitDateAbsolute = lastCommitDateAbs;
                     branch.lastCommitDateRelative = lastCommitDateRel;
@@ -245,8 +246,10 @@ class ReleaseValidator {
             if(b.branches.length == 0) {
                 return 1;
             }
+            a.branches.sort((a,b) => a.lastCommitDateObject - b.lastCommitDateObject);
+            b.branches.sort((a,b) => a.lastCommitDateObject - b.lastCommitDateObject);
 
-            return a.branches[0].lastCommitDateObject - b.branches[0].lastCommitDateObject;
+            return a.branches[a.branches.length - 1].lastCommitDateObject - b.branches[b.branches.length - 1].lastCommitDateObject;
         });
 
         for (const task of tasks) {
