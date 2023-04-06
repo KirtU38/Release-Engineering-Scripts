@@ -287,7 +287,7 @@ class ReleaseValidator {
                 okPrint = `${checkMark} `;
                 // isMergedPrint = " -> Merged";
             }
-            console.log(`${okPrint}${task.id} -> ${branch.name} -> ${branch.lastCommitDateAbsolute} (${branch.lastCommitDateRelative})`)
+            console.log(`${okPrint}${task.id} -> ${branch.name} -> ${branch.getFormattedDate()} (${branch.lastCommitDateRelative})`)
         }
         console.log("\n");
     }
@@ -299,10 +299,15 @@ class Branch {
     lastCommitDateObject;
     lastCommitDateAbsolute;
     lastCommitDateRelative;
+    lastCommitDateFormatted;
 
     constructor(name) {
         this.name = name;
         this.isMerged = true;
+    }
+
+    getFormattedDate() {
+        return `${this.lastCommitDateObject.getDate()}.${this.lastCommitDateObject.getMonth() + 1}.${this.lastCommitDateObject.getFullYear()}`
     }
 }
 
@@ -339,5 +344,11 @@ class AsanaTask {
 }
 
 // Prorgam run
+
+
+// let asd = new Date('Tue Mar 21 11:13:02 2023');
+// console.log(asd.getDate());
+// console.log(asd.getMonth() + 1);
+// console.log(asd.getFullYear());
 const releaseValidator = new ReleaseValidator();
 releaseValidator.run();
